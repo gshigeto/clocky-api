@@ -13,13 +13,19 @@ app.get('/', (req, res) => {
 });
 
 app.post('/in/:docId', (req, res) => {
-  google.clockIn(createToken(req.body), req.params.docId);
-  res.send({message: 'CLOCKED IN'});
+  google.clockIn(createToken(req.body), req.params.docId).then(function (response) {
+    res.send(response);
+  }).catch(function (err) {
+    res.send(err);
+  });
 });
 
 app.post('/out/:docId', (req, res) => {
-  google.clockOut(createToken(req.body), req.params.docId);
-  res.send({message: 'CLOCKED OUT'});
+  google.clockOut(createToken(req.body), req.params.docId).then(function (response) {
+    res.send(response);
+  }).catch(function (err) {
+    res.send(err);
+  });
 });
 
 app.listen(3000, () => {

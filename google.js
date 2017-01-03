@@ -3,16 +3,34 @@ var google = require('googleapis');
 var googleAuth = require('google-auth-library');
 var Q = require('q');
 
-function clockIn(token, docId) {
+function clockIn(token, checkId) {
+  var promise = Q.defer();
   authorize(token).then(function (client) {
-    listMajors(client, docId);
+    createDocument(client, checkId).then(function (docId) {
+      listMajors(client, docId).then(function () {
+        promise.resolve({docId: docId});
+      });
+    });
+  }).catch(function (err) {
+    promise.reject(err);
   });
+  return promise.promise;
 }
 
-function clockOut(token) {
+function clockOut(token, checkId) {
+  var promise = Q.defer();
   authorize(token).then(function (client) {
-    listMajors(client, docId);
+    createDocument(client, checkId).then(function (docId) {
+      listMajors(client, docId).then(function () {
+        if (docId !== checkId) {
+          promise.resolve({docId: docId});
+        }
+      });
+    });
+  }).catch(function (err) {
+    promise.reject(err);
   });
+  return promise.promise;
 }
 
 /**
@@ -57,6 +75,7 @@ function createOauthClient(credentials, token, callback, docId) {
  * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
  */
 function listMajors(auth, docId) {
+  var promise = Q.defer();
   var sheets = google.sheets('v4');
   sheets.spreadsheets.values.get({
     auth: auth,
@@ -65,11 +84,12 @@ function listMajors(auth, docId) {
   }, function(err, response) {
     if (err) {
       console.log('The API returned an error: ' + err);
-      return;
+      promise.reject('The API returned an error: ' + err);
     }
     var rows = response.values;
     if (rows.length == 0) {
       console.log('No data found.');
+      promise.resolve('No data found.');
     } else {
       console.log('Name, Major:');
       for (var i = 0; i < rows.length; i++) {
@@ -77,8 +97,29 @@ function listMajors(auth, docId) {
         // Print columns A and E, which correspond to indices 0 and 4.
         console.log('%s, %s', row[0], row[4]);
       }
+      promise.resolve('Finished!');
     }
   });
+  return promise.promise;
+}
+
+function createDocument(auth, docId) {
+  var promise = Q.defer();
+  if (docId === '-1') {
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.create({
+      auth: auth
+    }, function (err, response) {
+      if (err) {
+        console.log('The API returned an error: ' + err);
+        promise.reject('The API returned an error: ' + err);
+      }
+      promise.resolve(response.spreadsheetId);
+    })
+  } else {
+    promise.resolve(docId);
+  }
+  return promise.promise;
 }
 
 module.exports = {
