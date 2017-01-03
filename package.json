@@ -14,7 +14,8 @@
     "cors": "^2.8.1",
     "express": "^4.14.0",
     "google-auth-library": "^0.10.0",
-    "googleapis": "^16.0.0"
+    "googleapis": "^16.0.0",
+    "q": "^1.4.1"
   },
   "devDependencies": {
     "eslint": "^3.12.2",
