@@ -13,7 +13,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/in/:docId', (req, res) => {
-  google.clockIn(createToken(req.body), req.params.docId).then(function (response) {
+  google.clockIn(createToken(req.body), req.body.timestamp, req.params.docId).then(function (response) {
     res.send(response);
   }).catch(function (err) {
     res.send(err);
@@ -21,7 +21,7 @@ app.post('/in/:docId', (req, res) => {
 });
 
 app.post('/out/:docId', (req, res) => {
-  google.clockOut(createToken(req.body), req.params.docId).then(function (response) {
+  google.clockOut(createToken(req.body), req.body.timestamp, req.params.docId).then(function (response) {
     res.send(response);
   }).catch(function (err) {
     res.send(err);

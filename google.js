@@ -3,11 +3,11 @@ var google = require('googleapis');
 var googleAuth = require('google-auth-library');
 var Q = require('q');
 
-function clockIn(token, checkId) {
+function clockIn(token, timestamp, checkId) {
   var promise = Q.defer();
   authorize(token).then(function (client) {
     createDocument(client, checkId).then(function (docId) {
-      listMajors(client, docId).then(function () {
+      listMajors(client, docId, timestamp).then(function () {
         promise.resolve({docId: docId});
       });
     });
@@ -17,11 +17,11 @@ function clockIn(token, checkId) {
   return promise.promise;
 }
 
-function clockOut(token, checkId) {
+function clockOut(token, timestamp, checkId) {
   var promise = Q.defer();
   authorize(token).then(function (client) {
     createDocument(client, checkId).then(function (docId) {
-      listMajors(client, docId).then(function () {
+      listMajors(client, docId, timestamp).then(function () {
         if (docId !== checkId) {
           promise.resolve({docId: docId});
         }
@@ -74,31 +74,24 @@ function createOauthClient(credentials, token, callback, docId) {
  * Print the names and majors of students in a sample spreadsheet:
  * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
  */
-function listMajors(auth, docId) {
+function listMajors(auth, docId, timestamp) {
+  var date = new Date(parseInt(timestamp));
   var promise = Q.defer();
   var sheets = google.sheets('v4');
-  sheets.spreadsheets.values.get({
+  sheets.spreadsheets.values.append({
     auth: auth,
-    spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-    range: 'Class Data!A2:E',
+    spreadsheetId: docId,
+    range: 'Sheet1!A1:B1',
+    valueInputOption: 'USER_ENTERED',
+    resource: {
+      values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
+    }
   }, function(err, response) {
     if (err) {
       console.log('The API returned an error: ' + err);
-      promise.reject('The API returned an error: ' + err);
+      return promise.reject('The API returned an error: ' + err);
     }
-    var rows = response.values;
-    if (rows.length == 0) {
-      console.log('No data found.');
-      promise.resolve('No data found.');
-    } else {
-      console.log('Name, Major:');
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        // Print columns A and E, which correspond to indices 0 and 4.
-        console.log('%s, %s', row[0], row[4]);
-      }
-      promise.resolve('Finished!');
-    }
+    promise.resolve('Finished!');
   });
   return promise.promise;
 }
