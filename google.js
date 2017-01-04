@@ -1,36 +1,41 @@
 var fs = require('fs');
 var google = require('googleapis');
 var googleAuth = require('google-auth-library');
-var Q = require('q');
 
-function clockIn(token, timestamp, checkId) {
-  var promise = Q.defer();
-  authorize(token).then(function (client) {
-    createDocument(client, checkId).then(function (docId) {
-      listMajors(client, docId, timestamp).then(function () {
-        promise.resolve({docId: docId});
+function clockIn(token, timestamp, docId) {
+  return new Promise(function (resolve, reject) {
+    authorize(token).then(function (client) {
+      sheetsIn(client, docId, timestamp).then(function () {
+        resolve({docId: docId});
       });
+    }).catch(function (err) {
+      reject(err);
     });
-  }).catch(function (err) {
-    promise.reject(err);
   });
-  return promise.promise;
 }
 
-function clockOut(token, timestamp, checkId) {
-  var promise = Q.defer();
-  authorize(token).then(function (client) {
-    createDocument(client, checkId).then(function (docId) {
-      listMajors(client, docId, timestamp).then(function () {
-        if (docId !== checkId) {
-          promise.resolve({docId: docId});
-        }
+function clockOut(token, timestamp, docId) {
+  return new Promise(function (resolve, reject) {
+    authorize(token).then(function (client) {
+      sheetsOut(client, docId, timestamp).then(function () {
+        resolve({docId: docId});
       });
+    }).catch(function (err) {
+      reject(err);
     });
-  }).catch(function (err) {
-    promise.reject(err);
   });
-  return promise.promise;
+}
+
+function createSpreadsheet(token, docId) {
+  return new Promise(function (resolve, reject) {
+    authorize(token).then(function (client) {
+      createDocument(client, docId).then(function (docId) {
+        resolve(docId);
+      });
+    }).catch(function (err) {
+      reject(err);
+    });
+  });
 }
 
 /**
@@ -39,17 +44,17 @@ function clockOut(token, timestamp, checkId) {
  * @param {Object} token The authorization client tokens.
  */
 function authorize(token) {
-  var promise = Q.defer();
-  // Load client secrets from a local file.
-  fs.readFile('client_secret.json', function processClientSecrets(err, content) {
-    if (err) {
-      promise.reject('Error loading client secret file: ' + err)
-    }
-    // Authorize a client with the loaded credentials, then call the
-    // Google Sheets API.
-    promise.resolve(createOauthClient(JSON.parse(content), token));
+  return new Promise(function (resolve, reject) {
+    // Load client secrets from a local file.
+    fs.readFile('client_secret.json', function processClientSecrets(err, content) {
+      if (err) {
+        reject('Error loading client secret file: ' + err)
+      }
+      // Authorize a client with the loaded credentials, then call the
+      // Google Sheets API.
+      resolve(createOauthClient(JSON.parse(content), token));
+    });
   });
-  return promise.promise;
 }
 
 /**
@@ -74,48 +79,97 @@ function createOauthClient(credentials, token, callback, docId) {
  * Print the names and majors of students in a sample spreadsheet:
  * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
  */
-function listMajors(auth, docId, timestamp) {
-  var date = new Date(parseInt(timestamp));
-  var promise = Q.defer();
-  var sheets = google.sheets('v4');
-  sheets.spreadsheets.values.append({
-    auth: auth,
-    spreadsheetId: docId,
-    range: 'Sheet1!A1:B1',
-    valueInputOption: 'USER_ENTERED',
-    resource: {
-      values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
-    }
-  }, function(err, response) {
-    if (err) {
-      console.log('The API returned an error: ' + err);
-      return promise.reject('The API returned an error: ' + err);
-    }
-    promise.resolve('Finished!');
+function sheetsIn(auth, docId, timestamp) {
+  return new Promise(function (resolve, reject) {
+    var date = new Date(parseInt(timestamp));
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.append({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Sheet1!A1:B1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
+      }
+    }, function(err, response) {
+      if (err) {
+        console.log('The API returned an error: ' + err);
+        return reject('The API returned an error: ' + err);
+      }
+      resolve('Finished!');
+    });
   });
-  return promise.promise;
+}
+
+/**
+ * Print the names and majors of students in a sample spreadsheet:
+ * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
+ */
+function sheetsOut(auth, docId, timestamp) {
+  return new Promise(function (resolve, reject) {
+    var date = new Date(parseInt(timestamp));
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.append({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Sheet1!A1:B1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
+      }
+    }, function(err, response) {
+      if (err) {
+        console.log('The API returned an error: ' + err);
+        return reject('The API returned an error: ' + err);
+      }
+      resolve('Finished!');
+    });
+  });
 }
 
 function createDocument(auth, docId) {
-  var promise = Q.defer();
-  if (docId === '-1') {
-    var sheets = google.sheets('v4');
-    sheets.spreadsheets.create({
-      auth: auth
-    }, function (err, response) {
-      if (err) {
-        console.log('The API returned an error: ' + err);
-        promise.reject('The API returned an error: ' + err);
-      }
-      promise.resolve(response.spreadsheetId);
-    })
-  } else {
-    promise.resolve(docId);
-  }
-  return promise.promise;
+  return new Promise(function (resolve, reject) {
+    if (docId === '-1') {
+      var sheets = google.sheets('v4');
+      sheets.spreadsheets.create({
+        auth: auth,
+        resource: {
+          properties: {
+            title: 'CLOCKY TIMESHEET'
+          }
+        },
+        sheets: [
+          {
+            resource: {
+              properties: {
+                title: 'TIMESHEET'
+              }
+            }
+          }, {
+            resource: {
+              properties: {
+                title: 'PAYMENT'
+              }
+            }
+          }
+        ]
+      }, function (err, response) {
+        if (err) {
+          reject({code: err.code, message: err.message});
+        } else {
+          resolve(response.spreadsheetId);
+        }
+      }).catch(function (err) {
+        console.log(err);
+      });
+    } else {
+      resolve(docId);
+    }
+  });
 }
 
 module.exports = {
   clockIn: clockIn,
-  clockOut: clockOut
+  clockOut: clockOut,
+  createSpreadsheet: createSpreadsheet
 };
