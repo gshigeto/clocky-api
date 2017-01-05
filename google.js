@@ -2,11 +2,21 @@ var fs = require('fs');
 var google = require('googleapis');
 var googleAuth = require('google-auth-library');
 
+/**
+ * Wrapper to authorize and clock in on Clocky Timesheet
+ *
+ * @param {Object} token Object containing the access_token, refresh_token
+ * and token_type used to create OAuth2 client credentials
+ * @param {date} timestamp Timestamp used to clock the user out
+ * @param {string} docId Google Spreadsheet ID
+*/
 function clockIn(token, timestamp, docId) {
   return new Promise(function (resolve, reject) {
     authorize(token).then(function (client) {
-      sheetsIn(client, docId, timestamp).then(function () {
-        resolve({docId: docId});
+      sheetsIn(client, docId, timestamp).then(function (response) {
+        resolve(response);
+      }).catch(function (err) {
+        reject(err);
       });
     }).catch(function (err) {
       reject(err);
@@ -14,11 +24,21 @@ function clockIn(token, timestamp, docId) {
   });
 }
 
+/**
+ * Wrapper to authorize and clock out on Clocky Timesheet
+ *
+ * @param {Object} token Object containing the access_token, refresh_token
+ * and token_type used to create OAuth2 client credentials
+ * @param {date} timestamp Timestamp used to clock the user out
+ * @param {string} docId Google Spreadsheet ID
+*/
 function clockOut(token, timestamp, docId) {
   return new Promise(function (resolve, reject) {
     authorize(token).then(function (client) {
-      sheetsOut(client, docId, timestamp).then(function () {
-        resolve({docId: docId});
+      sheetsOut(client, docId, timestamp).then(function (response) {
+        resolve(response);
+      }).catch(function (err) {
+        reject(err);
       });
     }).catch(function (err) {
       reject(err);
@@ -26,11 +46,20 @@ function clockOut(token, timestamp, docId) {
   });
 }
 
+/**
+ * Wrapper to authorize and create a Google Spreadsheet
+ *
+ * @param {Object} token Object containing the access_token, refresh_token
+ * and token_type used to create OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
 function createSpreadsheet(token, docId) {
   return new Promise(function (resolve, reject) {
     authorize(token).then(function (client) {
       createDocument(client, docId).then(function (docId) {
-        resolve(docId);
+        resolve({code: 200, body: {message: 'Spreadsheet successfully created', docId: docId}});
+      }).catch(function (err) {
+        reject(err);
       });
     }).catch(function (err) {
       reject(err);
@@ -48,10 +77,9 @@ function authorize(token) {
     // Load client secrets from a local file.
     fs.readFile('client_secret.json', function processClientSecrets(err, content) {
       if (err) {
-        reject('Error loading client secret file: ' + err)
+        reject({code: 400, message: 'Could not load client_secret.json'});
       }
-      // Authorize a client with the loaded credentials, then call the
-      // Google Sheets API.
+      // Authorize a client with the loaded credentials
       resolve(createOauthClient(JSON.parse(content), token));
     });
   });
@@ -76,9 +104,13 @@ function createOauthClient(credentials, token, callback, docId) {
 }
 
 /**
- * Print the names and majors of students in a sample spreadsheet:
- * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
- */
+ * Clocks the user in and sets the current date
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+ * @param {date} timestamp Timestamp used to clock the
+ * user in as well as set the date
+*/
 function sheetsIn(auth, docId, timestamp) {
   return new Promise(function (resolve, reject) {
     var date = new Date(parseInt(timestamp));
@@ -86,47 +118,88 @@ function sheetsIn(auth, docId, timestamp) {
     sheets.spreadsheets.values.append({
       auth: auth,
       spreadsheetId: docId,
-      range: 'Sheet1!A1:B1',
+      range: 'Timesheet!A1:B1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
       }
     }, function(err, response) {
       if (err) {
-        console.log('The API returned an error: ' + err);
-        return reject('The API returned an error: ' + err);
+        reject({code: err.code, message: err.message});
+      } else {
+        resolve({code: 200, body: {message: 'Successfully clocked in', docId: docId}});
       }
-      resolve('Finished!');
     });
   });
 }
 
 /**
- * Print the names and majors of students in a sample spreadsheet:
- * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
- */
+ * Clocks the user out and sets the total time worked for that shift
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+ * @param {date} timestamp Timestamp used to clock the user out
+*/
 function sheetsOut(auth, docId, timestamp) {
   return new Promise(function (resolve, reject) {
-    var date = new Date(parseInt(timestamp));
-    var sheets = google.sheets('v4');
-    sheets.spreadsheets.values.append({
-      auth: auth,
-      spreadsheetId: docId,
-      range: 'Sheet1!A1:B1',
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
-      }
-    }, function(err, response) {
-      if (err) {
-        console.log('The API returned an error: ' + err);
-        return reject('The API returned an error: ' + err);
-      }
-      resolve('Finished!');
+    getCurrentRow(auth, docId).then(function (row) {
+      var date = new Date(parseInt(timestamp));
+      var sheets = google.sheets('v4');
+      sheets.spreadsheets.values.update({
+        auth: auth,
+        spreadsheetId: docId,
+        range: `Timesheet!C${row}:E${row}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [[date.toLocaleTimeString(), '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
+        }
+      }, function(err, response) {
+        if (err) {
+          reject({code: err.code, message: err.message});
+        } else {
+          resolve({code: 200, body: {message: 'Successfully clocked in', docId: docId}});
+        }
+      });
+    }).catch(function (err) {
+      reject(err);
     });
   });
 }
 
+/**
+ * Gets the current row that is empty from range C1:E
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
+function getCurrentRow(auth, docId) {
+  return new Promise(function (resolve, reject) {
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.get({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Timesheet!C1:E'
+    }, function(err, response) {
+      if (err) {
+        reject({code: err.code, message: err.message});
+      } else {
+        if (response.values) {
+          resolve(response.values.length + 1);
+        } else {
+          resolve(1);
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Creates a new Google Spreadsheet named 'Clocky Timesheet'
+ * with a sheet titled 'Timesheet'
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
 function createDocument(auth, docId) {
   return new Promise(function (resolve, reject) {
     if (docId === '-1') {
@@ -135,36 +208,120 @@ function createDocument(auth, docId) {
         auth: auth,
         resource: {
           properties: {
-            title: 'CLOCKY TIMESHEET'
-          }
+            title: 'Clocky Timesheet'
+          },
+          sheets: [
+            {
+              properties: {
+                title: 'Timesheet'
+              }
+            }
+          ]
         },
-        sheets: [
-          {
-            resource: {
-              properties: {
-                title: 'TIMESHEET'
-              }
-            }
-          }, {
-            resource: {
-              properties: {
-                title: 'PAYMENT'
-              }
-            }
-          }
-        ]
       }, function (err, response) {
         if (err) {
           reject({code: err.code, message: err.message});
         } else {
-          resolve(response.spreadsheetId);
+          createHeader(auth, response.spreadsheetId).then(function () {
+            createTotalsFormulas(auth, response.spreadsheetId).then(function () {
+              resolve(response.spreadsheetId);
+            }).catch(function (err) {
+              reject(err);
+            });
+          }).catch(function (err) {
+              reject(err);
+          });
         }
-      }).catch(function (err) {
-        console.log(err);
       });
     } else {
       resolve(docId);
     }
+  });
+}
+
+/**
+ * Creates header for the sheet including: date, in, out, total, and note
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
+function createHeader(auth, docId) {
+  return new Promise(function (resolve, reject) {
+    var date = new Date();
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.append({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Timesheet!A1:G1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [
+          ['Date', 'In', 'Out', '', 'Total', '', 'NOTE: You must currently change column E to duration number format as well as the \'total\' cell'],
+        ]
+      }
+    }, function(err, response) {
+      if (err) {
+        reject({code: err.code, message: err.message});
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Creates the start and end date cells along with the formula
+ * to calculate the total time worked between the two dates
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
+function createTotalsFormulas(auth, docId) {
+  return new Promise(function (resolve, reject) {
+    var date = new Date();
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.append({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Timesheet!G2:H4',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [
+          ['Start Date:', date.toLocaleDateString()],
+          ['End Date:', date.toLocaleDateString()],
+          ['Total Time:', '=SUMIFS(E2:E,A2:A,">="&H2,A2:A,"<="&H3)']
+        ]
+      }
+    }, function(err, response) {
+      if (err) {
+        reject({code: err.code, message: err.message});
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+// Currently not correct
+function setDurationType(auth, docId) {
+  return new Promise(function (resolve, reject) {
+    var date = new Date();
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.update({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Timesheet!E2:E',
+      resource: {
+          "type": "DATE",
+          "pattern": "[hh]:[mm]:[ss]"
+      }
+    }, function(err, response) {
+      if (err) {
+        reject({code: err.code, message: err.message});
+      } else {
+        resolve('Finished!');
+      }
+    });
   });
 }
 

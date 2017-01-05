@@ -13,33 +13,38 @@ app.get('/', (req, res) => {
 });
 
 app.post('/in/:docId', (req, res) => {
-  google.createSpreadsheet(createToken(req.body), req.params.docId).then(function (docId) {
-    google.clockIn(createToken(req.body), req.body.timestamp, docId).then(function (response) {
-      res.send(response);
+  google.createSpreadsheet(createToken(req.body), req.params.docId).then(function (response) {
+    google.clockIn(createToken(req.body), req.body.timestamp, response.body.docId).then(function (response) {
+      res.status(response.code).send(response.body);
     }).catch(function (err) {
-      res.status(400).send(err);
+      console.log(err);
+      res.status(err.code).send(err.message);
     });
   }).catch(function (err) {
+    console.log(err);
     res.status(err.code).send(err.message);
   });
 });
 
 app.post('/out/:docId', (req, res) => {
-  google.createSpreadsheet(createToken(req.body), req.params.docId).then(function (docId) {
-    google.clockOut(createToken(req.body), req.body.timestamp, docId).then(function (response) {
-      res.send(response);
+  google.createSpreadsheet(createToken(req.body), req.params.docId).then(function (response) {
+    google.clockOut(createToken(req.body), req.body.timestamp, response.body.docId).then(function (response) {
+      res.status(response.code).send(response.body);
     }).catch(function (err) {
-      res.status(400).send(err);
+      console.log(err);
+      res.status(err.code).send(err.message);
     });
   }).catch(function (err) {
+    console.log(err);
     res.status(err.code).send(err.message);
   });
 });
 
-app.post('/sheet/create', (req, res) => {
-  google.createSpreadsheet(createToken(req.body), '-1').then(function (docId) {
-    res.send({docId: docId});
+app.post('/spreadsheet/create', (req, res) => {
+  google.createSpreadsheet(createToken(req.body), '-1').then(function (response) {
+    res.status(response.code).send(response.body);
   }).catch(function (err) {
+    console.log(err);
     res.status(err.code).send(err.message);
   });
 });
