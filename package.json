@@ -7,7 +7,7 @@
     "start": "nodemon --debug=5858 index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "John Woodruff <johnwoodruff91@gmail.com>",
+  "author": "Gavin Nitta <gshigeto@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.15.2",
