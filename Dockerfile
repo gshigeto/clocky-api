@@ -11,4 +11,4 @@ COPY client_secret.json /app/client_secret.json
 
 RUN npm install
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
