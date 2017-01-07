@@ -47,6 +47,28 @@ function clockOut(token, timestamp, docId) {
 }
 
 /**
+ * Wrapper to authorize and export shifts
+ *
+ * @param {Object} token Object containing the access_token, refresh_token
+ * and token_type used to create OAuth2 client credentials
+ * @param {Object[]} shifts An array of shifts to export to Google Sheets
+ * @param {string} docId Google Spreadsheet ID
+*/
+function exportTimesheet(token, shifts, docId) {
+  return new Promise(function (resolve, reject) {
+    authorize(token).then(function (client) {
+      exportToSheets(client, docId, shifts).then(function (response) {
+        resolve(response);
+      }).catch(function (err) {
+        reject(err);
+      });
+    }).catch(function (err) {
+      reject(err);
+    });
+  });
+}
+
+/**
  * Wrapper to authorize and create a Google Spreadsheet
  *
  * @param {Object} token Object containing the access_token, refresh_token
@@ -163,6 +185,82 @@ function sheetsOut(auth, docId, timestamp) {
     }).catch(function (err) {
       reject(err);
     });
+  });
+}
+
+/**
+ * Clocks the user out and sets the total time worked for that shift
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+ * @param {Object[]} shifts An array of shifts to export to Google Sheets
+*/
+function exportToSheets(auth, docId, shifts) {
+  return new Promise(function (resolve, reject) {
+    clearSheet(auth, docId).then(function () {
+      createShiftValues(shifts).then(function (values) {
+        var sheets = google.sheets('v4');
+        sheets.spreadsheets.values.update({
+          auth: auth,
+          spreadsheetId: docId,
+          range: `Timesheet!A2:E`,
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+            values: values
+          }
+        }, function(err, response) {
+          if (err) {
+            reject({code: err.code, message: err.message});
+          } else {
+            resolve({code: 200, body: {message: 'Successfully exported to Sheets', docId: docId}});
+          }
+        });
+      }).catch(function (err) {
+        reject(err);
+      });
+    }).catch(function (err) {
+      reject(err);
+    });
+  });
+}
+
+/**
+ * Clears current values from A2:E
+ *
+ * @param {Object} auth OAuth2 client credentials
+ * @param {string} docId Google Spreadsheet ID
+*/
+function clearSheet(auth, docId) {
+  return new Promise(function (resolve, reject) {
+    var sheets = google.sheets('v4');
+    sheets.spreadsheets.values.clear({
+      auth: auth,
+      spreadsheetId: docId,
+      range: 'Timesheet!A2:E'
+    }, function(err, response) {
+      if (err) {
+        reject({code: err.code, message: err.message});
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Creates an array of arrays for each row
+ *
+ * @param {Object[]} shifts An array of shifts to export to Google Sheets
+*/
+function createShiftValues(shifts) {
+  return new Promise(function (resolve, reject) {
+    var values = [];
+    for (var i = 0; i < shifts.length; i++) {
+      var clockIn = new Date(parseInt(shift[i].clockIn));
+      var clockOut = new Date(parseInt(shift[i].clockOut));
+      values.push([clockIn.toLocaleDateString(), clockIn.toLocaleTimeString(), clockOut.toLocaleTimeString(), '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
+    }
+    resolve(values);
   });
 }
 
@@ -328,5 +426,6 @@ function setDurationType(auth, docId) {
 module.exports = {
   clockIn: clockIn,
   clockOut: clockOut,
+  exportTimesheet: exportTimesheet,
   createSpreadsheet: createSpreadsheet
 };
