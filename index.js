@@ -44,6 +44,9 @@ app.post('/export/:docId', (req, res) => {
   google.createSpreadsheet(createToken(req.body), req.params.docId).then(function (response) {
     google.exportTimesheet(createToken(req.body), req.body.shifts, response.body.docId).then(function (response) {
       res.status(response.code).send(response.body);
+    }).catch(function (err) {
+      console.log(err);
+      res.status(err.code).send(err.message);
     });
   }).catch(function (err) {
     console.log(err);

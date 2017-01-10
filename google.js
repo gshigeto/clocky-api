@@ -256,9 +256,9 @@ function createShiftValues(shifts) {
   return new Promise(function (resolve, reject) {
     var values = [];
     for (var i = 0; i < shifts.length; i++) {
-      var clockIn = new Date(parseInt(shift[i].clockIn));
-      var clockOut = new Date(parseInt(shift[i].clockOut));
-      values.push([clockIn.toLocaleDateString(), clockIn.toLocaleTimeString(), clockOut.toLocaleTimeString(), '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
+      var clockIn = new Date(parseInt(shifts[i].clockIn));
+      var clockOut = shifts[i].clockOut != undefined ? new Date(parseInt(shifts[i].clockOut)).toLocaleTimeString() : '';
+      values.push([clockIn.toLocaleDateString(), clockIn.toLocaleTimeString(), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
     }
     resolve(values);
   });
