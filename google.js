@@ -12,14 +12,14 @@ var dateFormat = require('dateformat');
  * @param {string} docId Google Spreadsheet ID
 */
 function clockIn(token, timestamp, docId) {
-  return new Promise(function (resolve, reject) {
-    authorize(token).then(function (client) {
-      sheetsIn(client, docId, timestamp).then(function (response) {
+  return new Promise((resolve, reject) => {
+    authorize(token).then(client => {
+      sheetsIn(client, docId, timestamp).then(response => {
         resolve(response);
-      }).catch(function (err) {
+      }).catch(err => {
         reject(err);
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -34,14 +34,14 @@ function clockIn(token, timestamp, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function clockOut(token, timestamp, docId) {
-  return new Promise(function (resolve, reject) {
-    authorize(token).then(function (client) {
-      sheetsOut(client, docId, timestamp).then(function (response) {
+  return new Promise((resolve, reject) => {
+    authorize(token).then(client => {
+      sheetsOut(client, docId, timestamp).then(response => {
         resolve(response);
-      }).catch(function (err) {
+      }).catch(err => {
         reject(err);
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -56,14 +56,14 @@ function clockOut(token, timestamp, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function exportTimesheet(token, shifts, docId) {
-  return new Promise(function (resolve, reject) {
-    authorize(token).then(function (client) {
-      exportToSheets(client, docId, shifts).then(function (response) {
+  return new Promise((resolve, reject) => {
+    authorize(token).then(client => {
+      exportToSheets(client, docId, shifts).then(response => {
         resolve(response);
-      }).catch(function (err) {
+      }).catch(err => {
         reject(err);
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -77,14 +77,14 @@ function exportTimesheet(token, shifts, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function createSpreadsheet(token, docId) {
-  return new Promise(function (resolve, reject) {
-    authorize(token).then(function (client) {
-      createDocument(client, docId).then(function (docId) {
+  return new Promise((resolve, reject) => {
+    authorize(token).then(client => {
+      createDocument(client, docId).then(docId => {
         resolve({code: 200, body: {message: 'Spreadsheet successfully created', docId: docId}});
-      }).catch(function (err) {
+      }).catch(err => {
         reject(err);
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -96,7 +96,7 @@ function createSpreadsheet(token, docId) {
  * @param {Object} token The authorization client tokens.
  */
 function authorize(token) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     // Load client secrets from a local file.
     fs.readFile('client_secret.json', function processClientSecrets(err, content) {
       if (err) {
@@ -135,7 +135,7 @@ function createOauthClient(credentials, token, callback, docId) {
  * user in as well as set the date
 */
 function sheetsIn(auth, docId, timestamp) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var date = new Date(parseInt(timestamp));
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
@@ -146,7 +146,7 @@ function sheetsIn(auth, docId, timestamp) {
       resource: {
         values: [[date.toDateString(), dateFormat(date, 'h:MM:ss TT')]]
       }
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
@@ -164,8 +164,8 @@ function sheetsIn(auth, docId, timestamp) {
  * @param {date} timestamp Timestamp used to clock the user out
 */
 function sheetsOut(auth, docId, timestamp) {
-  return new Promise(function (resolve, reject) {
-    getCurrentRow(auth, docId).then(function (row) {
+  return new Promise((resolve, reject) => {
+    getCurrentRow(auth, docId).then(row => {
       var date = new Date(parseInt(timestamp));
       var sheets = google.sheets('v4');
       sheets.spreadsheets.values.update({
@@ -176,14 +176,14 @@ function sheetsOut(auth, docId, timestamp) {
         resource: {
           values: [[dateFormat(date, 'h:MM:ss TT'), '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
         }
-      }, function(err, response) {
+      }, (err, response) => {
         if (err) {
           reject({code: err.code, message: err.message});
         } else {
           resolve({code: 200, body: {message: 'Successfully clocked in', docId: docId}});
         }
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -197,9 +197,9 @@ function sheetsOut(auth, docId, timestamp) {
  * @param {Object[]} shifts An array of shifts to export to Google Sheets
 */
 function exportToSheets(auth, docId, shifts) {
-  return new Promise(function (resolve, reject) {
-    clearSheet(auth, docId).then(function () {
-      createShiftValues(shifts).then(function (values) {
+  return new Promise((resolve, reject) => {
+    clearSheet(auth, docId).then(() => {
+      createShiftValues(shifts).then(values => {
         var sheets = google.sheets('v4');
         sheets.spreadsheets.values.update({
           auth: auth,
@@ -209,17 +209,17 @@ function exportToSheets(auth, docId, shifts) {
           resource: {
             values: values
           }
-        }, function(err, response) {
+        }, (err, response) => {
           if (err) {
             reject({code: err.code, message: err.message});
           } else {
             resolve({code: 200, body: {message: 'Successfully exported to Sheets', docId: docId}});
           }
         });
-      }).catch(function (err) {
+      }).catch(err => {
         reject(err);
       });
-    }).catch(function (err) {
+    }).catch(err => {
       reject(err);
     });
   });
@@ -232,13 +232,13 @@ function exportToSheets(auth, docId, shifts) {
  * @param {string} docId Google Spreadsheet ID
 */
 function clearSheet(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.clear({
       auth: auth,
       spreadsheetId: docId,
       range: 'Timesheet!A2:E'
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
@@ -254,7 +254,7 @@ function clearSheet(auth, docId) {
  * @param {Object[]} shifts An array of shifts to export to Google Sheets
 */
 function createShiftValues(shifts) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var values = [];
     for (var i = 0; i < shifts.length; i++) {
       var clockIn = new Date(parseInt(shifts[i].clockIn));
@@ -272,13 +272,13 @@ function createShiftValues(shifts) {
  * @param {string} docId Google Spreadsheet ID
 */
 function getCurrentRow(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.get({
       auth: auth,
       spreadsheetId: docId,
       range: 'Timesheet!C1:E'
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
@@ -300,7 +300,7 @@ function getCurrentRow(auth, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function createDocument(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (docId === '-1') {
       var sheets = google.sheets('v4');
       sheets.spreadsheets.create({
@@ -317,17 +317,17 @@ function createDocument(auth, docId) {
             }
           ]
         },
-      }, function (err, response) {
+      }, (err, response) => {
         if (err) {
           reject({code: err.code, message: err.message});
         } else {
-          createHeader(auth, response.spreadsheetId).then(function () {
-            createTotalsFormulas(auth, response.spreadsheetId).then(function () {
+          createHeader(auth, response.spreadsheetId).then(() => {
+            createTotalsFormulas(auth, response.spreadsheetId).then(() => {
               resolve(response.spreadsheetId);
-            }).catch(function (err) {
+            }).catch(err => {
               reject(err);
             });
-          }).catch(function (err) {
+          }).catch(err => {
               reject(err);
           });
         }
@@ -345,7 +345,7 @@ function createDocument(auth, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function createHeader(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var date = new Date();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
@@ -358,7 +358,7 @@ function createHeader(auth, docId) {
           ['Date', 'In', 'Out', '', 'Total', '', 'NOTE: You must currently change column E to duration number format as well as the \'total\' cell'],
         ]
       }
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
@@ -376,7 +376,7 @@ function createHeader(auth, docId) {
  * @param {string} docId Google Spreadsheet ID
 */
 function createTotalsFormulas(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var date = new Date();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
@@ -391,7 +391,7 @@ function createTotalsFormulas(auth, docId) {
           ['Total Time:', '=SUMIFS(E2:E,A2:A,">="&H2,A2:A,"<="&H3)']
         ]
       }
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
@@ -403,7 +403,7 @@ function createTotalsFormulas(auth, docId) {
 
 // Currently not correct
 function setDurationType(auth, docId) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var date = new Date();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.update({
@@ -414,7 +414,7 @@ function setDurationType(auth, docId) {
           "type": "DATE",
           "pattern": "[hh]:[mm]:[ss]"
       }
-    }, function(err, response) {
+    }, (err, response) => {
       if (err) {
         reject({code: err.code, message: err.message});
       } else {
