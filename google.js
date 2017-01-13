@@ -1,6 +1,7 @@
 var fs = require('fs');
 var google = require('googleapis');
 var googleAuth = require('google-auth-library');
+var dateFormat = require('dateformat');
 
 /**
  * Wrapper to authorize and clock in on Clocky Timesheet
@@ -143,7 +144,7 @@ function sheetsIn(auth, docId, timestamp) {
       range: 'Timesheet!A1:B1',
       valueInputOption: 'USER_ENTERED',
       resource: {
-        values: [[date.toLocaleDateString(), date.toLocaleTimeString()]]
+        values: [[date.toDateString(), dateFormat(date, 'h:MM:ss TT')]]
       }
     }, function(err, response) {
       if (err) {
@@ -173,7 +174,7 @@ function sheetsOut(auth, docId, timestamp) {
         range: `Timesheet!C${row}:E${row}`,
         valueInputOption: 'USER_ENTERED',
         resource: {
-          values: [[date.toLocaleTimeString(), '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
+          values: [[dateFormat(date, 'h:MM:ss TT'), '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
         }
       }, function(err, response) {
         if (err) {
@@ -257,8 +258,8 @@ function createShiftValues(shifts) {
     var values = [];
     for (var i = 0; i < shifts.length; i++) {
       var clockIn = new Date(parseInt(shifts[i].clockIn));
-      var clockOut = shifts[i].clockOut != undefined ? new Date(parseInt(shifts[i].clockOut)).toLocaleTimeString() : '';
-      values.push([clockIn.toLocaleDateString(), clockIn.toLocaleTimeString(), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
+      var clockOut = shifts[i].clockOut != undefined ? dateFormat(new Date(parseInt(shifts[i].clockOut)), 'h:MM:ss TT') : '';
+      values.push([clockIn.toDateString(), dateFormat(clockIn, 'h:MM:ss TT'), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
     }
     resolve(values);
   });
@@ -385,8 +386,8 @@ function createTotalsFormulas(auth, docId) {
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [
-          ['Start Date:', date.toLocaleDateString()],
-          ['End Date:', date.toLocaleDateString()],
+          ['Start Date:', date.toDateString()],
+          ['End Date:', date.toDateString()],
           ['Total Time:', '=SUMIFS(E2:E,A2:A,">="&H2,A2:A,"<="&H3)']
         ]
       }
