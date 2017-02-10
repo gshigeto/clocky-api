@@ -136,7 +136,7 @@ function createOauthClient(credentials, token, callback, docId) {
 */
 function sheetsIn(auth, docId, timestamp) {
   return new Promise((resolve, reject) => {
-    var date = new Date(parseInt(timestamp));
+    var date = new Date(timestamp);
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
       auth: auth,
@@ -166,7 +166,7 @@ function sheetsIn(auth, docId, timestamp) {
 function sheetsOut(auth, docId, timestamp) {
   return new Promise((resolve, reject) => {
     getCurrentRow(auth, docId).then(row => {
-      var date = new Date(parseInt(timestamp));
+      var date = new Date(timestamp);
       var sheets = google.sheets('v4');
       sheets.spreadsheets.values.update({
         auth: auth,
@@ -257,8 +257,8 @@ function createShiftValues(shifts) {
   return new Promise((resolve, reject) => {
     var values = [];
     for (var i = 0; i < shifts.length; i++) {
-      var clockIn = new Date(parseInt(shifts[i].clockIn));
-      var clockOut = shifts[i].clockOut != undefined ? dateFormat(new Date(parseInt(shifts[i].clockOut)), 'h:MM:ss TT') : '';
+      var clockIn = new Date(shifts[i].clockIn);
+      var clockOut = shifts[i].clockOut != undefined ? dateFormat(new Date(shifts[i].clockOut), 'h:MM:ss TT') : '';
       values.push([clockIn.toDateString(), dateFormat(clockIn, 'h:MM:ss TT'), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
     }
     resolve(values);
@@ -346,7 +346,6 @@ function createDocument(auth, docId) {
 */
 function createHeader(auth, docId) {
   return new Promise((resolve, reject) => {
-    var date = new Date();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
       auth: auth,
@@ -377,7 +376,7 @@ function createHeader(auth, docId) {
 */
 function createTotalsFormulas(auth, docId) {
   return new Promise((resolve, reject) => {
-    var date = new Date();
+    var date = new Date().toISOString();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
       auth: auth,
@@ -404,7 +403,7 @@ function createTotalsFormulas(auth, docId) {
 // Currently not correct
 function setDurationType(auth, docId) {
   return new Promise((resolve, reject) => {
-    var date = new Date();
+    var date = new Date().toISOString();
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.update({
       auth: auth,
