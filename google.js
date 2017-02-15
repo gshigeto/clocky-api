@@ -1,7 +1,7 @@
 var fs = require('fs');
 var google = require('googleapis');
 var googleAuth = require('google-auth-library');
-var dateFormat = require('dateformat');
+var moment = require('moment');
 
 /**
  * Wrapper to authorize and clock in on Clocky Timesheet
@@ -136,7 +136,7 @@ function createOauthClient(credentials, token, callback, docId) {
 */
 function sheetsIn(auth, docId, timestamp) {
   return new Promise((resolve, reject) => {
-    var date = new Date(timestamp);
+    var clockIn = moment(timestamp).utcOffset(timestamp);
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
       auth: auth,
@@ -144,7 +144,7 @@ function sheetsIn(auth, docId, timestamp) {
       range: 'Timesheet!A1:B1',
       valueInputOption: 'USER_ENTERED',
       resource: {
-        values: [[date.toDateString(), dateFormat(date, 'h:MM:ss TT')]]
+        values: [[clockIn.format('MM/DD/YYYY'), clockIn.format('h:mm:ss A')]]
       }
     }, (err, response) => {
       if (err) {
@@ -166,7 +166,7 @@ function sheetsIn(auth, docId, timestamp) {
 function sheetsOut(auth, docId, timestamp) {
   return new Promise((resolve, reject) => {
     getCurrentRow(auth, docId).then(row => {
-      var date = new Date(timestamp);
+      var clockOut = moment(timestamp).utcOffset(timestamp).format('h:mm:ss A');
       var sheets = google.sheets('v4');
       sheets.spreadsheets.values.update({
         auth: auth,
@@ -174,7 +174,7 @@ function sheetsOut(auth, docId, timestamp) {
         range: `Timesheet!C${row}:E${row}`,
         valueInputOption: 'USER_ENTERED',
         resource: {
-          values: [[dateFormat(date, 'h:MM:ss TT'), '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
+          values: [[clockOut, '', `=IF(B${row}<>"",IF(C${row}="","MISSING OUT",C${row}-B${row}),IF(C${row}<>"", "MISSING IN", ""))`]]
         }
       }, (err, response) => {
         if (err) {
@@ -257,9 +257,9 @@ function createShiftValues(shifts) {
   return new Promise((resolve, reject) => {
     var values = [];
     for (var i = 0; i < shifts.length; i++) {
-      var clockIn = new Date(shifts[i].clockIn);
-      var clockOut = shifts[i].clockOut != undefined ? dateFormat(new Date(shifts[i].clockOut), 'h:MM:ss TT') : '';
-      values.push([clockIn.toDateString(), dateFormat(clockIn, 'h:MM:ss TT'), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
+      var clockIn = moment(shifts[i].clockIn).utcOffset(shifts[i].clockIn);
+      var clockOut = shifts[i].clockOut != undefined ? moment(shifts[i].clockOut).utcOffset(shifts[i].clockOut).format('h:mm:ss A') : '';
+      values.push([clockIn.format('MM/DD/YYYY'), clockIn.format('h:mm:ss A'), clockOut, '', `=IF(B${i+2}<>"",IF(C${i+2}="","MISSING OUT",C${i+2}-B${i+2}),IF(C${i+2}<>"", "MISSING IN", ""))`]);
     }
     resolve(values);
   });
