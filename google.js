@@ -376,7 +376,8 @@ function createHeader(auth, docId) {
 */
 function createTotalsFormulas(auth, docId) {
   return new Promise((resolve, reject) => {
-    var date = new Date().toISOString();
+    var today = moment().format('MM/DD/YYYY');
+    var nextWeek = moment().add(7, 'days').format('MM/DD/YYYY');
     var sheets = google.sheets('v4');
     sheets.spreadsheets.values.append({
       auth: auth,
@@ -385,8 +386,8 @@ function createTotalsFormulas(auth, docId) {
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [
-          ['Start Date:', date.toDateString()],
-          ['End Date:', date.toDateString()],
+          ['Start Date:', today],
+          ['End Date:', nextWeek],
           ['Total Time:', '=SUMIFS(E2:E,A2:A,">="&H2,A2:A,"<="&H3)']
         ]
       }
